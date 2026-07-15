@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Кубики на столе</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; color: white; font-family: Arial, sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            pointer-events: none;
+            user-select: none;
+            font-size: 14px;
+            border: 1px solid #444;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">🖱️ Перетащите для вращения · Прокрутка для масштаба</div>
+
+    <!-- Импорт Three.js и дополнений -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Сцена, камера, рендерер ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(12, 8, 14);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Управление ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1.5, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.update();
+
+        // --- Освещение ---
+
+        // Ambient — мягкий свет
+        const ambient = new THREE.AmbientLight(0x404060, 0.6);
+        scene.add(ambient);
+
+        // Основной направленный свет
+        const dirLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+        dirLight.position.set(5, 12, 8);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 30;
+        dirLight.shadow.camera.left = -15;
+        dirLight.shadow.camera.right = 15;
+        dirLight.shadow.camera.top = 15;
+        dirLight.shadow.camera.bottom = -15;
+        scene.add(dirLight);
+
+        // Заполняющий свет сзади
+        const fillLight = new THREE.DirectionalLight(0x4488ff, 0.6);
+        fillLight.position.set(-5, 2, -8);
+        scene.add(fillLight);
+
+        // Маленький акцент сверху
+        const topLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        topLight.position.set(0, 10, 0);
+        scene.add(topLight);
+
+        // --- Пол (стол) ---
+        const floorGeometry = new THREE.PlaneGeometry(16, 16);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3a3a4a,
+            roughness: 0.7,
+            metalness: 0.1,
+            side: THREE.DoubleSide,
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.01;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Добавим сетку для визуализации стола (необязательно)
+        const gridHelper = new THREE.GridHelper(16, 20, 0xaaaaaa, 0x555555);
+        gridHelper.position.y = 0;
+        scene.add(gridHelper);
+
+        // --- Создание кубиков пирамидой ---
+
+        // Функция для создания кубика с заданным цветом и позицией
+        function createCube(color, x, y, z) {
+            const size = 0.95; // чуть меньше 1 для зазора
+            const geometry = new THREE.BoxGeometry(size, size, size);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.3,
+                metalness: 0.1,
+                emissive: new THREE.Color(color).multiplyScalar(0.05),
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y + size / 2, z);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            return cube;
+        }
+
+        // Генерация случайного яркого цвета
+        function randomColor() {
+            const hue = Math.random();
+            return new THREE.Color().setHSL(hue, 0.8, 0.6);
+        }
+
+        // Параметры пирамиды: основание 4x4, высота 4 уровня
+        const baseSize = 4;
+        const heightLevels = 4;
+
+        for (let level = 0; level < heightLevels; level++) {
+            const size = baseSize - level; // размер слоя (количество кубиков в ряду)
+            const offset = (baseSize - size) / 2; // смещение для центрирования
+            const yPos = level + 0.5; // высота центра кубика (нижний слой на y=0.5)
+
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    const x = i + offset - (baseSize / 2) + 0.5;
+                    const z = j + offset - (baseSize / 2) + 0.5;
+                    const color = randomColor();
+                    const cube = createCube(color, x, yPos, z);
+                    scene.add(cube);
+                }
+            }
+        }
+
+        // Добавим несколько разбросанных кубиков вокруг стола для интереса
+        const extraPositions = [
+            [-3.5, 0.5, 3.5],
+            [4.0, 0.5, -3.0],
+            [-4.0, 0.5, -3.5],
+            [3.0, 1.5, 4.0],
+            [-3.0, 2.5, -4.0],
+        ];
+        extraPositions.forEach(pos => {
+            const color = randomColor();
+            const cube = createCube(color, pos[0], pos[1], pos[2]);
+            scene.add(cube);
+        });
+
+        // --- Анимация ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- Адаптация под размер окна ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
