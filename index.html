@@ -3,26 +3,28 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3 белых кубика</title>
+    <title>Три белых кубика</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
         #info {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0,0,0,0.7);
-            padding: 8px 16px;
-            border-radius: 8px;
-            color: #fff;
+            padding: 8px 20px;
+            border-radius: 30px;
+            color: #ccc;
             font: 14px Arial;
             pointer-events: none;
             user-select: none;
-            border: 1px solid #555;
+            border: 1px solid #444;
+            letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
-    <div id="info">🖱️ Вращайте мышью · Колесо – масштаб</div>
+    <div id="info">⚪ Три белых кубика — статичная сцена</div>
 
     <script type="importmap">
         {
@@ -35,15 +37,15 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         // --- Сцена, камера, рендерер ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x2a2a2a);
 
-        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(6, 4, 8);
-        camera.lookAt(0, 1, 0);
+        // Фиксированная камера — никакого вращения
+        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(5, 3.5, 7);
+        camera.lookAt(0, 1.2, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -53,36 +55,30 @@
         renderer.toneMappingExposure = 1.2;
         document.body.appendChild(renderer.domElement);
 
-        // --- Управление ---
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0, 1.2, 0);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.update();
+        // --- Освещение (реалистичное) ---
 
-        // --- Освещение ---
-        // Мягкий общий свет
-        const ambient = new THREE.AmbientLight(0x404060, 0.5);
+        // Мягкий заполняющий свет
+        const ambient = new THREE.AmbientLight(0x404060, 0.6);
         scene.add(ambient);
 
-        // Основной направленный свет (с тенями)
-        const dirLight = new THREE.DirectionalLight(0xffeedd, 2.5);
-        dirLight.position.set(5, 10, 7);
+        // Основной источник света с тенями
+        const dirLight = new THREE.DirectionalLight(0xffeedd, 3.0);
+        dirLight.position.set(6, 10, 4);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 1024;
         dirLight.shadow.mapSize.height = 1024;
         dirLight.shadow.camera.near = 0.5;
         dirLight.shadow.camera.far = 25;
-        dirLight.shadow.camera.left = -10;
-        dirLight.shadow.camera.right = 10;
-        dirLight.shadow.camera.top = 10;
-        dirLight.shadow.camera.bottom = -10;
+        dirLight.shadow.camera.left = -8;
+        dirLight.shadow.camera.right = 8;
+        dirLight.shadow.camera.top = 8;
+        dirLight.shadow.camera.bottom = -8;
         scene.add(dirLight);
 
-        // Заполняющий свет
-        const fillLight = new THREE.DirectionalLight(0x4488ff, 0.4);
-        fillLight.position.set(-4, 2, -6);
-        scene.add(fillLight);
+        // Подсветка сзади (для бликов)
+        const backLight = new THREE.DirectionalLight(0x88bbff, 0.5);
+        backLight.position.set(-3, 1, -6);
+        scene.add(backLight);
 
         // Верхний акцент
         const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
@@ -92,7 +88,7 @@
         // --- Пол (стол) ---
         const floorMat = new THREE.MeshStandardMaterial({
             color: 0x4a4a5a,
-            roughness: 0.7,
+            roughness: 0.6,
             metalness: 0.1,
             side: THREE.DoubleSide,
         });
@@ -102,58 +98,58 @@
         floor.receiveShadow = true;
         scene.add(floor);
 
-        // Сетка для красоты
+        // Сетка для красоты (придаёт ощущение стола)
         const grid = new THREE.GridHelper(12, 20, 0xaaaaaa, 0x555555);
         grid.position.y = 0;
         scene.add(grid);
 
-        // --- Создание трёх белых кубиков ---
+        // --- Три белых кубика с чёткими рёбрами ---
 
-        function createWhiteCube(posX, posZ) {
+        function createWhiteCube(posX, posZ, rotationY = 0) {
             const size = 1.2;
-            // Основной материал – белый с лёгкой шероховатостью
+            // Основной материал – белый, слегка шероховатый, с лёгким блеском
             const material = new THREE.MeshStandardMaterial({
-                color: 0xf0f0f0,
-                roughness: 0.3,
+                color: 0xf5f5f5,
+                roughness: 0.25,
                 metalness: 0.05,
                 emissive: new THREE.Color(0x222222).multiplyScalar(0.02),
             });
             const geometry = new THREE.BoxGeometry(size, size, size);
             const cube = new THREE.Mesh(geometry, material);
             cube.position.set(posX, size / 2, posZ);
+            cube.rotation.y = rotationY;
             cube.castShadow = true;
             cube.receiveShadow = true;
 
-            // Добавляем рёбра (чёрные линии) – чтобы кубик выглядел "настоящим"
+            // Рёбра (чёрные линии) – для реалистичности
             const edges = new THREE.EdgesGeometry(geometry);
             const lineMat = new THREE.LineBasicMaterial({ color: 0x333333 });
             const wireframe = new THREE.LineSegments(edges, lineMat);
-            cube.add(wireframe); // привязываем линии к кубику
+            cube.add(wireframe);
 
             return cube;
         }
 
-        // Размещаем три кубика в ряд с интервалом 2.5 единицы
-        const positions = [
-            [-2.5, 0],
-            [0, 0],
-            [2.5, 0]
+        // Размещаем три кубика в ряд с небольшим поворотом для живости
+        const cubes = [
+            { x: -2.6, z: 0.2, rot: 0.1 },
+            { x: 0,    z: 0,   rot: 0 },
+            { x: 2.6,  z: -0.2, rot: -0.1 }
         ];
 
-        positions.forEach(([x, z]) => {
-            const cube = createWhiteCube(x, z);
+        cubes.forEach(({ x, z, rot }) => {
+            const cube = createWhiteCube(x, z, rot);
             scene.add(cube);
         });
 
-        // --- Анимация (статичная, но с управлением) ---
+        // --- Анимация (статичная, но рендер идёт постоянно для отзывчивости) ---
         function animate() {
             requestAnimationFrame(animate);
-            controls.update();
             renderer.render(scene, camera);
         }
         animate();
 
-        // --- Адаптация под окно ---
+        // --- Адаптация под размер окна ---
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
